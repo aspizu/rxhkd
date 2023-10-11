@@ -1,5 +1,6 @@
 # rxhkd
 
+`~/.config/rxhkd/rxhkdrc`
 ```sh
 # Application launcher.
 mode super + r:
