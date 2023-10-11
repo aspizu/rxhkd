@@ -1,6 +1,1 @@
-mode alt + r:
-  f: firefox
-  d: discord
-  g: gimp
-  e: dolphin
-  t: wezterm
+alt + t: exit 1
