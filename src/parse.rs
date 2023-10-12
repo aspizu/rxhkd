@@ -9,6 +9,58 @@ use xcb::x;
 /// of rxhkd.
 /// There is no error reporting, the parser simply discards any invalid structure.
 
+/// Replaces comma-separated strings inside braces with the nth element.
+fn brace_expansion(src: &str, mut indices: impl Iterator<Item = usize>) -> String {
+   let mut evaluated = String::with_capacity(src.len());
+   let mut skip = false;
+   let mut iter = src.chars();
+   while let Some(c) = iter.next() {
+      match c {
+         '\\' => {
+            skip = true;
+            evaluated.push(c)
+         },
+         '{' => {
+            if skip {
+               skip = false;
+               evaluated.push(c);
+               continue;
+            }
+            for _ in 0..indices.next().unwrap() {
+               while let Some(c) = iter.next() {
+                  if c == ',' {
+                     break;
+                  }
+               }
+            }
+            let mut skip_bracket = false;
+            while let Some(c) = iter.next() {
+               if c == '}' {
+                  skip_bracket = true;
+                  break;
+               }
+               if c == ',' {
+                  break;
+               }
+               evaluated.push(c);
+            }
+            if !skip_bracket {
+               while let Some(c) = iter.next() {
+                  if c == '}' {
+                     break;
+                  }
+               }
+            }
+         },
+         _ => {
+            skip = false;
+            evaluated.push(c)
+         },
+      }
+   }
+   evaluated
+}
+
 /// A token is a reference to a slice from the parser's source string.
 #[derive(Debug)]
 pub struct Token<'a> {
@@ -156,7 +208,12 @@ impl<'a> ParserData<'a> {
    /// If the current character is a newline, ignore this line as it is a blank
    /// line.
    fn offside_rule(&self, s: &mut ParserState, m: usize, mm: usize) -> bool {
-      m < mm && (s.i >= self.src.len() || self.src[s.i] != b'\n')
+      let i = s.i;
+      if m < mm && (s.i >= self.src.len() || self.src[s.i] != b'\n') {
+         s.i = i;
+         return false;
+      }
+      true
    }
 
    /// Matches a indented multi-line string. Indentation will be stripped off.
@@ -166,10 +223,8 @@ impl<'a> ParserData<'a> {
       s.i = i;
       let mut v = "".to_owned();
       loop {
-         let i = s.i;
          let m = self.offside(s);
-         if self.offside_rule(s, m, mm) {
-            s.i = i;
+         if !self.offside_rule(s, m, mm) {
             break v;
          }
          while s.i < self.src.len() && self.src[s.i] != b'\n' {
@@ -221,20 +276,38 @@ impl<'a> ParserData<'a> {
       Key::from_str(self.identifier(s)?.into()).ok()
    }
 
-   /// Parse a chord.
-   fn chord(&self, s: &mut ParserState) -> Option<Chord> {
-      self.backtrack(s, |s| {
-         let modifier = self.modifier(s);
-         let key = self.key(s)?;
+   fn key_brace_expansion(self, s: &mut ParserState) -> Vec<Key> {
+      let mut v = vec![];
+      while let Some(key) = self.key(s) {
+         v.push(key);
          self.whitespace(s);
-         Some(Chord { modifiers: modifier, key })
-      })
+         if !self.string(s, "|") {
+            break;
+         }
+         self.whitespace(s);
+      }
+      v
+   }
+
+   /// Parse a chord.
+   fn chords(&self, s: &mut ParserState) -> Vec<Chord> {
+      let modifiers = self.modifier(s);
+      let keys = self.key_brace_expansion(s);
+      self.whitespace(s);
+      keys.iter().map(|key| Chord { modifiers, key: *key }).collect()
+   }
+
+   fn chord(&self, s: &mut ParserState) -> Chord {
+      let modifiers = self.modifier(s);
+      let key = self.key(s).unwrap();
+      self.whitespace(s);
+      Chord { modifiers, key }
    }
 
    /// Parse a key bind.
-   fn bind(&self, s: &mut ParserState) -> Option<Bind> {
+   fn bind(&self, s: &mut ParserState) -> Option<Vec<Bind>> {
       self.backtrack(s, |s| {
-         let chord = self.chord(s)?;
+         let chords = self.chords(s);
          self.whitespace(s);
          if !self.string(s, ":") {
             return None;
@@ -246,7 +319,17 @@ impl<'a> ParserData<'a> {
          };
          // Remove trailing newlines and whitespaces from the end of the command string.
          output.truncate(output.trim_end().len());
-         Some(Bind { chord, output: Some(output), action: Action::None })
+         Some(
+            chords
+               .iter()
+               .enumerate()
+               .map(|(i, chord)| Bind {
+                  chord: *chord,
+                  output: Some(brace_expansion(output.as_str(), [i].iter().cloned())),
+                  action: Action::None,
+               })
+               .collect(),
+         )
       })
    }
 
@@ -257,7 +340,7 @@ impl<'a> ParserData<'a> {
             return None;
          }
          self.whitespace(s);
-         let chord = self.chord(s)?;
+         let chord = self.chord(s);
          self.whitespace(s);
          // Trailing whitespace after the colon will cause problems.
          if !self.string(s, ":\n") {
@@ -275,16 +358,17 @@ impl<'a> ParserData<'a> {
       s.i = i;
       let mut binds = vec![];
       loop {
-         let i = s.i;
          let m = self.offside(s);
-         if self.offside_rule(s, m, mm) {
-            s.i = i;
+         if !self.offside_rule(s, m, mm) {
             break binds;
          }
-         let Some(bind) = self.mode(s).or_else(|| self.bind(s)) else {
+         if let Some(bind) = self.mode(s) {
+            binds.push(bind);
+         } else if let Some(newbinds) = self.bind(s) {
+            binds.extend(newbinds);
+         } else {
             break binds;
-         };
-         binds.push(bind);
+         }
       }
    }
 }
