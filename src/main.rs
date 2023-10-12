@@ -111,7 +111,7 @@ fn main() -> Result<()> {
    let src = read_to_string(config_path)?;
    let (parser_data, mut parser_state) = new_parser(src.as_str());
    let binds = parser_data.binds(&mut parser_state);
-   println!("{:#?}", binds);
-   //mainloop(binds)
-   Ok(())
+   //println!("{:#?}", binds);
+   mainloop(binds)
+   //Ok(())
 }
