@@ -1,8 +1,10 @@
+use serde::Serialize;
 use strum::EnumString;
 
 /// All keycodes for my laptop keyboard.
 /// These might or might not be the same for everyone.
-#[derive(Debug, Copy, Clone, EnumString)]
+#[derive(Debug, Copy, Clone, EnumString, Serialize)]
+#[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum Key {
    Esc = 9,

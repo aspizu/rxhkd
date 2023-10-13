@@ -2,11 +2,14 @@ mod bind;
 mod chord;
 mod key;
 mod parse;
+use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
 use bind::*;
 use parse::*;
+use serde_json;
 use std::env;
+use std::env::args;
 use std::fs::read_to_string;
 use std::path::Path;
 use std::process::Command;
@@ -100,18 +103,35 @@ fn mainloop(binds: Vec<Bind>) -> Result<()> {
 }
 
 fn main() -> Result<()> {
+   let mut json = false;
+   let mut args = args();
+   args.next();
+   if let Some(flags) = args.next() {
+      for flag in flags.chars() {
+         match flag {
+            'j' => {
+               json = true;
+            },
+            _ => {},
+         }
+      }
+   }
    // If XDG_CONFIG_HOME is not set, the configuration file will default to
    // ~/.config/rxhkd/rxhkdrc
    let config_home = if let Ok(config_home) = env::var("XDG_CONFIG_HOME") {
       config_home.into()
    } else {
-      Path::new(env::var("HOME").unwrap().as_str()).join(".config")
+      Path::new(env::var("HOME")?.as_str()).join(".config")
    };
    let config_path = config_home.join("rxhkd/rxhkdrc");
    let src = read_to_string(config_path)?;
    let (parser_data, mut parser_state) = new_parser(src.as_str());
    let binds = parser_data.binds(&mut parser_state);
-   //println!("{:#?}", binds);
-   mainloop(binds)
-   //Ok(())
+   if json {
+      let json = serde_json::to_string(&binds)?;
+      println!("{json}");
+      Ok(())
+   } else {
+      mainloop(binds)
+   }
 }

@@ -1,13 +1,23 @@
 use crate::key::*;
+use serde::Serialize;
+use serde::Serializer;
 use xcb::x;
 
 /// A chord represents a combination of modifier keys and a single key.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize)]
 pub struct Chord {
    /// The modifiers which need to be held down together with the key. Can be empty,
    /// which means just pressing down the key will trigger it's event.
+   #[serde(serialize_with = "modmask_as_bits")]
    pub modifiers: x::ModMask,
    pub key: Key,
+}
+
+fn modmask_as_bits<S: Serializer>(
+   modmask: &x::ModMask,
+   ser: S,
+) -> Result<S::Ok, S::Error> {
+   ser.serialize_u32(modmask.bits())
 }
 
 impl Chord {

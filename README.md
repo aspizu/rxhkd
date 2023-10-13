@@ -16,3 +16,5 @@ mode super + r:
 # Play or pause music.
 super + space: playerctl play-pause
 ```
+
+## Generate HTML Cheatsheet using [cheatsheet.py](./cheatsheets/README.md)

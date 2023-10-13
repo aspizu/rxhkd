@@ -1,0 +1,67 @@
+$rosewater: #f2d5cf;
+$flamingo: #eebebe;
+$pink: #f4b8e4;
+$mauve: #ca9ee6;
+$red: #e78284;
+$maroon: #ea999c;
+$peach: #ef9f76;
+$yellow: #e5c890;
+$green: #a6d189;
+$teal: #81c8be;
+$sky: #99d1db;
+$sapphire: #85c1dc;
+$blue: #8caaee;
+$lavender: #babbf1;
+$text: #c6d0f5;
+$subtext1: #b5bfe2;
+$subtext0: #a5adce;
+$overlay2: #949cbb;
+$overlay1: #838ba7;
+$overlay0: #737994;
+$surface2: #626880;
+$surface1: #51576d;
+$surface0: #414559;
+$base: #303446;
+$mantle: #292c3c;
+$crust: #232634;
+
+* {
+	margin: 0;
+	padding: 0;
+	font: normal normal normal 16px 'Cascadia Code';
+	color: $text;
+}
+
+html {
+	background: $base;
+}
+
+body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 0.5rem;
+}
+
+.Bind {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.Bind__output {
+	flex-grow: 1;
+}
+
+.Chord {
+	display: flex;
+	gap: 0.5rem;
+}
+
+.Chord__key {
+	background: $crust;
+	padding: 0.4rem 0.8rem;
+	border-radius: 0.1rem;
+	box-shadow: 0px 2px 0px 0px $surface0;
+}
